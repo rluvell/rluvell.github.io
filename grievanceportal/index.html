@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vicki's Grievance Centre</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #8800B2;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        #bouncingCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 1;
+        }
+
+        .banner {
+            width: 100%;
+            height: 200px;
+            background-color: #63C550;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2.5em;
+            font-weight: bold;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .grievance-form {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #63C550;
+            border-radius: 4px;
+            box-sizing: border-box;
+            background: #f6fff7;
+            color: #222;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: 2px solid #63C550;
+            background: #eaffea;
+        }
+
+        textarea {
+            height: 150px;
+            resize: vertical;
+        }
+
+        button {
+            background-color: #63C550;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #4ea03e;
+        }
+
+        .grievances-list {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .grievance-item {
+            border-bottom: 1px solid #eee;
+            padding: 15px 0;
+        }
+
+        .grievance-item:last-child {
+            border-bottom: none;
+        }
+
+        .grievance-title {
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-bottom: 5px;
+        }
+
+        .grievance-date {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(136, 0, 178, 0.7);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .countdown {
+            font-size: 2em;
+            margin: 20px 0;
+            color: #8800B2;
+        }
+
+        .meditation-text {
+            font-style: italic;
+            color: #666;
+            margin: 15px 0;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #63C550;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="bouncingCanvas"></canvas>
+    <div class="content-wrapper">
+        <div class="banner">
+            Vicki's Grievance Centre
+        </div>
+
+        <div class="grievance-form">
+            <div class="form-group">
+                <label for="title">Grievance Title:</label>
+                <input type="text" id="title" required>
+            </div>
+            <div class="form-group">
+                <label for="body">Grievance Details:</label>
+                <textarea id="body" required></textarea>
+            </div>
+            <button onclick="submitGrievance()">Lodge Grievance</button>
+        </div>
+
+        <div class="grievances-list">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Recent Grievances</h2>
+                <button onclick="clearGrievances()">Clear All Grievances</button>
+            </div>
+            <div id="grievancesList"></div>
+        </div>
+
+        <div id="confirmationModal" class="modal">
+            <div class="modal-content">
+                <h3 id="modalTitle">Processing Your Grievance</h3>
+                <div class="spinner"></div>
+                <div class="countdown" id="countdown">10</div>
+                <p class="meditation-text" id="meditationText"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const meditationTexts = [
+            "Take a deep breath...",
+            "Have you considered that it might be your fault?",
+            "Inhale peace, exhale frustration...",
+            "Let's find our inner calm...",
+            "Patience is a virtue...",
+            "Good things come to those who wait...",
+            "Let's practice mindfulness...",
+            "Let go of your worries..."
+        ];
+
+        const confirmationSteps = [
+            { title: "Confirming Your Grievance", text: "Please confirm that you really want to lodge this grievance..." },
+            { title: "Double-Checking", text: "Just making absolutely sure this is what you want..." },
+            { title: "Processing", text: "Processing your grievance with care and attention..." },
+            { title: "Final Acceptance", text: "Almost there, just one final step..." }
+        ];
+
+        let currentStep = 0;
+        let countdown = 10;
+        let countdownInterval;
+
+        function showModal(step) {
+            const modal = document.getElementById('confirmationModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const meditationText = document.getElementById('meditationText');
+            
+            modalTitle.textContent = confirmationSteps[step].title;
+            meditationText.textContent = confirmationSteps[step].text;
+            modal.style.display = 'flex';
+            
+            countdown = 10;
+            document.getElementById('countdown').textContent = countdown;
+            
+            countdownInterval = setInterval(() => {
+                countdown--;
+                document.getElementById('countdown').textContent = countdown;
+                
+                if (countdown % 3 === 0) {
+                    meditationText.textContent = meditationTexts[Math.floor(Math.random() * meditationTexts.length)];
+                }
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    if (step < confirmationSteps.length - 1) {
+                        showModal(step + 1);
+                    } else {
+                        submitGrievanceToServer();
+                    }
+                }
+            }, 1000);
+        }
+
+        function submitGrievance() {
+            const title = document.getElementById('title').value;
+            const body = document.getElementById('body').value;
+            
+            if (!title || !body) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            currentStep = 0;
+            showModal(0);
+        }
+
+        function submitGrievanceToServer() {
+            const title = document.getElementById('title').value;
+            const body = document.getElementById('body').value;
+            
+            fetch('/api/grievances', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ title, body })
+            })
+            .then(response => response.json())
+            .then(grievance => {
+                // Create new grievance element
+                const grievanceElement = document.createElement('div');
+                grievanceElement.className = 'grievance-item';
+                grievanceElement.innerHTML = `
+                    <div class="grievance-title">${grievance.title}</div>
+                    <div class="grievance-date">${new Date(grievance.date).toLocaleString()}</div>
+                    <div class="grievance-body">${grievance.body}</div>
+                `;
+                
+                // Add to the list
+                document.getElementById('grievancesList').prepend(grievanceElement);
+                
+                // Clear the form
+                document.getElementById('title').value = '';
+                document.getElementById('body').value = '';
+                
+                // Hide modal
+                document.getElementById('confirmationModal').style.display = 'none';
+                
+                // Show success message
+                alert('Your grievance has been successfully lodged!');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('There was an error submitting your grievance. Please try again.');
+            });
+        }
+
+        // Load existing grievances when the page loads
+        window.addEventListener('load', () => {
+            loadGrievances();
+        });
+
+        function loadGrievances() {
+            fetch('/api/grievances')
+                .then(response => response.json())
+                .then(grievances => {
+                    const grievancesList = document.getElementById('grievancesList');
+                    grievancesList.innerHTML = ''; // Clear existing grievances
+                    grievances.forEach(grievance => {
+                        const grievanceElement = document.createElement('div');
+                        grievanceElement.className = 'grievance-item';
+                        grievanceElement.innerHTML = `
+                            <div class="grievance-title">${grievance.title}</div>
+                            <div class="grievance-date">${new Date(grievance.date).toLocaleString()}</div>
+                            <div class="grievance-body">${grievance.body}</div>
+                        `;
+                        grievancesList.appendChild(grievanceElement);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading grievances:', error);
+                });
+        }
+
+        function clearGrievances() {
+            if (confirm('Are you sure you want to clear all grievances? This action cannot be undone.')) {
+                fetch('/api/grievances', {
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    document.getElementById('grievancesList').innerHTML = '';
+                    alert('All grievances have been cleared successfully.');
+                })
+                .catch(error => {
+                    console.error('Error clearing grievances:', error);
+                    alert(`Failed to clear grievances: ${error.message}`);
+                });
+            }
+        }
+
+        // Bouncing images configuration
+        const images = [
+            '/images/1.png',
+            '/images/2.png',
+            '/images/3.png',
+            '/images/4.png',
+            '/images/5.png'
+        ];
+
+        const canvas = document.getElementById('bouncingCanvas');
+        const ctx = canvas.getContext('2d');
+        let bouncingImages = [];
+
+        // Set canvas size to window size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        // Initialize bouncing images
+        class BouncingImage {
+            constructor(imageUrl) {
+                this.image = new Image();
+                this.image.src = imageUrl;
+                this.x = Math.random() * (canvas.width - 100);
+                this.y = Math.random() * (canvas.height - 100);
+                this.dx = (Math.random() - 0.5) * 4;
+                this.dy = (Math.random() - 0.5) * 4;
+                this.size = null;
+                this.loaded = false;
+                
+                this.image.onload = () => {
+                    // Calculate size to be 20% of window size while maintaining aspect ratio
+                    const maxWidth = canvas.width * 0.2;
+                    const maxHeight = canvas.height * 0.2;
+                    
+                    const aspectRatio = this.image.naturalWidth / this.image.naturalHeight;
+                    
+                    if (aspectRatio > 1) {
+                        // Image is wider than tall
+                        this.size = {
+                            width: maxWidth,
+                            height: maxWidth / aspectRatio
+                        };
+                    } else {
+                        // Image is taller than wide
+                        this.size = {
+                            width: maxHeight * aspectRatio,
+                            height: maxHeight
+                        };
+                    }
+                    
+                    this.loaded = true;
+                };
+            }
+
+            update() {
+                if (!this.loaded) return;
+
+                // Bounce off walls
+                if (this.x + this.size.width > canvas.width || this.x < 0) {
+                    this.dx = -this.dx;
+                }
+                if (this.y + this.size.height > canvas.height || this.y < 0) {
+                    this.dy = -this.dy;
+                }
+
+                // Update position
+                this.x += this.dx;
+                this.y += this.dy;
+            }
+
+            draw() {
+                if (!this.loaded) return;
+                ctx.drawImage(this.image, this.x, this.y, this.size.width, this.size.height);
+            }
+        }
+
+        // Initialize images
+        function initBouncingImages() {
+            bouncingImages = images.map(url => new BouncingImage(url));
+        }
+
+        // Animation loop
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            bouncingImages.forEach(image => {
+                image.update();
+                image.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            // Recalculate image sizes when window is resized
+            bouncingImages.forEach(image => {
+                if (image.loaded) {
+                    const maxWidth = canvas.width * 0.2;
+                    const maxHeight = canvas.height * 0.2;
+                    const aspectRatio = image.image.naturalWidth / image.image.naturalHeight;
+                    
+                    if (aspectRatio > 1) {
+                        image.size = {
+                            width: maxWidth,
+                            height: maxWidth / aspectRatio
+                        };
+                    } else {
+                        image.size = {
+                            width: maxHeight * aspectRatio,
+                            height: maxHeight
+                        };
+                    }
+                }
+            });
+        });
+
+        // Initialize and start animation
+        resizeCanvas();
+        initBouncingImages();
+        animate();
+    </script>
+</body>
+</html> 
