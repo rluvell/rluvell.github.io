@@ -70,13 +70,7 @@
             margin-bottom: 15px;
         }
 
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-
-        input[type="text"], textarea {
+        select {
             width: 100%;
             padding: 8px;
             border: 1px solid #63C550;
@@ -86,7 +80,28 @@
             color: #222;
         }
 
-        input[type="text"]:focus, textarea:focus {
+        select:focus {
+            outline: 2px solid #63C550;
+            background: #eaffea;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="text"], textarea, input[type="email"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #63C550;
+            border-radius: 4px;
+            box-sizing: border-box;
+            background: #f6fff7;
+            color: #222;
+        }
+
+        input[type="text"]:focus, textarea:focus, input[type="email"]:focus {
             outline: 2px solid #63C550;
             background: #eaffea;
         }
@@ -182,6 +197,19 @@
             margin: 20px auto;
         }
 
+        .soundcloud-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+
+        .soundcloud-container:hover {
+            opacity: 1;
+        }
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -197,6 +225,22 @@
         </div>
 
         <div class="grievance-form">
+            <div class="form-group">
+                <label for="type">Type:</label>
+                <select id="type" required>
+                    <option value="">Select a type...</option>
+                    <option value="complaint">Complaint</option>
+                    <option value="request">Request</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="name">Your Name:</label>
+                <input type="text" id="name" required>
+            </div>
+            <div class="form-group">
+                <label for="email">Your Email:</label>
+                <input type="email" id="email" required>
+            </div>
             <div class="form-group">
                 <label for="title">Grievance Title:</label>
                 <input type="text" id="title" required>
@@ -220,18 +264,44 @@
             <div class="modal-content">
                 <h3 id="modalTitle">Processing Your Grievance</h3>
                 <div class="spinner"></div>
-                <div class="countdown" id="countdown">10</div>
+                <div class="countdown" id="countdown">5</div>
                 <p class="meditation-text" id="meditationText"></p>
             </div>
         </div>
     </div>
 
+    <div class="soundcloud-container">
+        <iframe id="soundcloud-player" width="300" height="166" scrolling="no" frameborder="no" allow="autoplay" src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/christophe-holczer/trap-royalty-fetty-wap&color=%2363C550&auto_play=false&hide_related=true&show_comments=false&show_user=false&show_reposts=false&show_teaser=false"></iframe>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script src="https://w.soundcloud.com/player/api.js"></script>
     <script>
         // Initialize EmailJS with your public key
         (function() {
             emailjs.init("bnCgUgpqmzJHeEhuU");
         })();
+
+        // SoundCloud player setup
+        let player;
+        let hasPlayed = false;
+
+        window.addEventListener('load', function() {
+            const iframe = document.getElementById('soundcloud-player');
+            player = SC.Widget(iframe);
+
+            // Add click event listener to the entire document
+            document.addEventListener('click', function firstClickHandler() {
+                if (!hasPlayed) {
+                    player.bind(SC.Widget.Events.READY, function() {
+                        player.play();
+                    });
+                    hasPlayed = true;
+                    // Remove the event listener after first play
+                    document.removeEventListener('click', firstClickHandler);
+                }
+            });
+        });
 
         const meditationTexts = [
             "Take a deep breath...",
@@ -252,7 +322,7 @@
         ];
 
         let currentStep = 0;
-        let countdown = 10;
+        let countdown = 5;
         let countdownInterval;
 
         function showModal(step) {
@@ -264,14 +334,14 @@
             meditationText.textContent = confirmationSteps[step].text;
             modal.style.display = 'flex';
             
-            countdown = 10;
+            countdown = 5;
             document.getElementById('countdown').textContent = countdown;
             
             countdownInterval = setInterval(() => {
                 countdown--;
                 document.getElementById('countdown').textContent = countdown;
                 
-                if (countdown % 3 === 0) {
+                if (countdown % 2 === 0) {
                     meditationText.textContent = meditationTexts[Math.floor(Math.random() * meditationTexts.length)];
                 }
                 
@@ -283,14 +353,17 @@
                         submitGrievanceToServer();
                     }
                 }
-            }, 1000);
+            }, 2000);
         }
 
         function submitGrievance() {
+            const type = document.getElementById('type').value;
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
             const title = document.getElementById('title').value;
             const body = document.getElementById('body').value;
             
-            if (!title || !body) {
+            if (!type || !name || !email || !title || !body) {
                 alert('Please fill in all fields');
                 return;
             }
@@ -300,12 +373,18 @@
         }
 
         function submitGrievanceToServer() {
+            const type = document.getElementById('type').value;
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
             const title = document.getElementById('title').value;
             const body = document.getElementById('body').value;
             
             // Create new grievance object
             const grievance = {
                 id: Date.now(),
+                type: type,
+                name: name,
+                email: email,
                 title: title,
                 body: body,
                 date: new Date().toISOString()
@@ -320,8 +399,15 @@
             const templateParams = {
                 to_email: 'lucianrlovell@gmail.com',
                 from_name: 'Grievance Portal',
-                subject: `New Grievance: ${title}`,
-                message: `Title: ${title}\n\nDetails: ${body}\n\nDate: ${new Date().toLocaleString()}`
+                subject: `New ${type.charAt(0).toUpperCase() + type.slice(1)}: ${title}`,
+                message: `Type: ${type.charAt(0).toUpperCase() + type.slice(1)}
+Name: ${name}
+Email: ${email}
+Title: ${title}
+
+Details: ${body}
+
+Date: ${new Date().toLocaleString()}`
             };
 
             emailjs.send('grievancePortal', 'vickiGrievance', templateParams)
@@ -337,6 +423,8 @@
             grievanceElement.innerHTML = `
                 <div class="grievance-title">${grievance.title}</div>
                 <div class="grievance-date">${new Date(grievance.date).toLocaleString()}</div>
+                <div class="grievance-type">Type: ${grievance.type.charAt(0).toUpperCase() + grievance.type.slice(1)}</div>
+                <div class="grievance-name">From: ${grievance.name}</div>
                 <div class="grievance-body">${grievance.body}</div>
             `;
             
@@ -344,6 +432,9 @@
             document.getElementById('grievancesList').prepend(grievanceElement);
             
             // Clear the form
+            document.getElementById('type').value = '';
+            document.getElementById('name').value = '';
+            document.getElementById('email').value = '';
             document.getElementById('title').value = '';
             document.getElementById('body').value = '';
             
@@ -370,6 +461,8 @@
                 grievanceElement.innerHTML = `
                     <div class="grievance-title">${grievance.title}</div>
                     <div class="grievance-date">${new Date(grievance.date).toLocaleString()}</div>
+                    <div class="grievance-type">Type: ${grievance.type.charAt(0).toUpperCase() + grievance.type.slice(1)}</div>
+                    <div class="grievance-name">From: ${grievance.name}</div>
                     <div class="grievance-body">${grievance.body}</div>
                 `;
                 grievancesList.appendChild(grievanceElement);
